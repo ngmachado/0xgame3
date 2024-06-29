@@ -1,2 +1,8 @@
 
 .DS_Store
+
+# Zig
+
+zig3D/zig-cache/
+zig3D/zig-out/
+

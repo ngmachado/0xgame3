@@ -8,6 +8,8 @@ The pipeline features modules for handling different aspects of 3D graphics rend
 
 This is a **work in progress**, and the project is still in the early stages of development. The goal is to create a simple, efficient, and easy-to-use 3D graphics rendering pipeline that can be used for a variety of applications, including games, simulations, and visualizations.
 
+Visit my public notes at [Axe Notes](https://publish.obsidian.md/axe/public/vault/3D+Graphics+Rendering+Pipeline+in+Zig) for more information.
+
 ## Motivation
 
 I'm using this project as a way to learn more about 3D graphics rendering as well as Zig programming language. I'm also using it as a way to experiment with different rendering techniques and algorithms.

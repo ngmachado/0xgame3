@@ -3,6 +3,5 @@
 
 # Zig
 
-zig3D/zig-cache/
-zig3D/zig-out/
-
+zig3D/.zig-cache/
+zig3D/.zig-out/

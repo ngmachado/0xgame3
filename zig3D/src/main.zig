@@ -1,24 +1,105 @@
+//! Initialize the display and color buffer, and handle input events
 const std = @import("std");
+const display = @import("display.zig");
+const buffer = @import("color_buffer.zig");
+const vector = @import("vector.zig");
+const Color = @import("color.zig").Color;
+const input = @import("input.zig");
+
+const TargetFPS: u32 = 120;
+const TargetFrameDurationMs: i64 = 1000 / TargetFPS;
+
+var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+var allocator = gpa.allocator();
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    var screen = try display.Display.init(1024, 900);
+    defer screen.deinit();
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+    const config = buffer.ColorBufferConfig{
+        .draw_grid = buffer.GridOption.Simple,
+        .grid_color = null, // Use default color
+        .background_color = Color.fromBytes(0, 0, 0, 255),
+        .draw_center_rect = true,
+        .rect_color = Color.fromBytes(255, 0, 0, 255),
+        .rect_width = 50,
+        .rect_height = 50,
+    };
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    var colorBuffer = try buffer.ColorBuffer.init(&allocator, screen.size.getWidth(), screen.size.getHeight(), config);
+    defer colorBuffer.deinit();
 
-    try bw.flush(); // don't forget to flush!
+    var last_time: i64 = std.time.milliTimestamp();
+    var start_time = last_time;
+    var frame_count: u32 = 0;
+    var quit = false;
+
+    while (!quit) {
+        const current_time: i64 = std.time.milliTimestamp();
+        //const delta_time = calculateDeltaTime(last_time, current_time);
+        last_time = current_time;
+
+        handleInput(&quit);
+        if (quit) break;
+
+        colorBuffer.clear();
+        try displayOutput(&screen, &colorBuffer);
+
+        manageFrameRate(current_time, &start_time, &frame_count);
+    }
 }
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+fn handleInput(quit: *bool) void {
+    const event = input.poll();
+    switch (event) {
+        input.Event.QUIT => {
+            quit.* = true;
+        },
+        input.Event.ESCAPE => {
+            quit.* = true;
+        },
+        input.Event.UP => {
+            std.debug.print("UP\n", .{});
+        },
+        input.Event.DOWN => {
+            std.debug.print("DOWN\n", .{});
+        },
+        input.Event.w => {
+            std.debug.print("w\n", .{});
+        },
+        input.Event.s => {
+            std.debug.print("s\n", .{});
+        },
+        input.Event.a => {
+            std.debug.print("a\n", .{});
+        },
+        input.Event.d => {
+            std.debug.print("d\n", .{});
+        },
+        else => {},
+    }
+}
+
+fn displayOutput(screen: *display.Display, cb: *buffer.ColorBuffer) !void {
+    try screen.render(cb.getPtr());
+}
+
+fn calculateDeltaTime(lastTime: i64, currentTime: i64) f32 {
+    return @as(f32, @floatFromInt(currentTime - lastTime)) / 1000.0;
+}
+
+fn manageFrameRate(currentTime: i64, startTime: *i64, frameCount: *u32) void {
+    frameCount.* += 1;
+    if (currentTime - startTime.* >= 1000) {
+        const fps = frameCount.*;
+        std.debug.print("FPS: {}\n", .{fps});
+        frameCount.* = 0;
+        startTime.* = currentTime;
+    }
+
+    const frameDuration: i64 = std.time.milliTimestamp() - currentTime;
+    if (frameDuration < TargetFrameDurationMs) {
+        const sleepDuration = TargetFrameDurationMs - frameDuration;
+        std.time.sleep(@as(u64, @intCast(sleepDuration)) * 1000000); // Convert milliseconds to nanoseconds
+    }
 }

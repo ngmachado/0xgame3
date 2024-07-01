@@ -26,7 +26,7 @@ pub fn main() !void {
         .rect_height = 50,
     };
 
-    var colorBuffer = try buffer.ColorBuffer.init(&allocator, screen.size.getWidth(), screen.size.getHeight(), config);
+    var colorBuffer = try buffer.ColorBuffer.init(allocator, screen.size.getWidth(), screen.size.getHeight(), config);
     defer colorBuffer.deinit();
 
     var last_time: i64 = std.time.milliTimestamp();

@@ -292,4 +292,8 @@ pub const Vec3f = struct {
     pub fn eql(self: Vec3f, other: Vec3f) bool {
         return self.x() == other.x() and self.y() == other.y() and self.z() == other.z();
     }
+
+    pub fn isZero(self: Vec3f) bool {
+        return self.x() == 0.0 and self.y() == 0.0 and self.z() == 0.0;
+    }
 };

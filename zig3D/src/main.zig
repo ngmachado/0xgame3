@@ -5,6 +5,8 @@ const buffer = @import("color_buffer.zig");
 const vector = @import("vector.zig");
 const Color = @import("color.zig").Color;
 const input = @import("input.zig");
+const Scene = @import("scene.zig").Scene;
+const Camera = @import("camera.zig").Camera;
 
 const TargetFPS: u32 = 120;
 const TargetFrameDurationMs: i64 = 1000 / TargetFPS;
@@ -28,6 +30,21 @@ pub fn main() !void {
 
     var colorBuffer = try buffer.ColorBuffer.init(allocator, screen.size.getWidth(), screen.size.getHeight(), config);
     defer colorBuffer.deinit();
+
+    // set camera config
+    const cameraConfig = Camera.Config{
+        .position = vector.Vec3f.init(0.0, 0.0, 0.0),
+        .orientation = vector.Vec3f.init(0.0, 0.0, 0.0),
+        .screen_width = screen.size.getWidth(),
+        .screen_height = screen.size.getHeight(),
+        .fov_factor = 90.0,
+        .near_plane = 0.1,
+        .far_plane = 100.0,
+        .speed = 0.1,
+    };
+
+    var scene = try Scene.init(allocator, cameraConfig);
+    try setupScene(&scene);
 
     var last_time: i64 = std.time.milliTimestamp();
     var start_time = last_time;
@@ -78,6 +95,10 @@ fn handleInput(quit: *bool) void {
         },
         else => {},
     }
+}
+
+fn setupScene(scene: *Scene) !void {
+    try scene.loadMesh(allocator, "assets/bunny.obj");
 }
 
 fn displayOutput(screen: *display.Display, cb: *buffer.ColorBuffer) !void {

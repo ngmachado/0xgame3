@@ -144,16 +144,16 @@ pub const Vec2f32 = struct {
     // rotate vector by angle in degrees over X axis
     pub fn rotateOverX(self: Vec2f32, angle_degrees: f32) Vec2f32 {
         const angle_rad = toRad(angle_degrees);
-        const cos = math.cos(angle_rad);
-        const sin = math.sin(angle_rad);
+        const cos = @cos(angle_rad);
+        const sin = @sin(angle_rad);
         return Vec2f32.init(self.x(), self.y() * cos - self.x() * sin);
     }
 
     // rotate vector by angle in degrees over Y axis
     pub fn rotateOverY(self: Vec2f32, angle_degrees: f32) Vec2f32 {
         const angle_rad = toRad(angle_degrees);
-        const cos = math.cos(angle_rad);
-        const sin = math.sin(angle_rad);
+        const cos = @cos(angle_rad);
+        const sin = @sin(angle_rad);
         return Vec2f32.init(self.x() * cos - self.y() * sin, self.y());
     }
 };
@@ -295,5 +295,10 @@ pub const Vec3f = struct {
 
     pub fn isZero(self: Vec3f) bool {
         return self.x() == 0.0 and self.y() == 0.0 and self.z() == 0.0;
+    }
+
+    // negate vector, returning a new vector
+    pub fn negate(self: Vec3f) Vec3f {
+        return Vec3f.init(-self.x(), -self.y(), -self.z());
     }
 };

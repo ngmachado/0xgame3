@@ -57,6 +57,31 @@ pub const Vec2u32 = struct {
     }
 };
 
+// 3D unsigned integer vector
+pub const Vec3u32 = struct {
+    v3u32: Vec3_u32,
+
+    // initialize Vec3u32
+    pub fn init(vx: u32, vy: u32, vz: u32) Vec3u32 {
+        return Vec3u32{ .v3u32 = .{ vx, vy, vz } };
+    }
+
+    // get x component
+    pub fn x(self: Vec3u32) u32 {
+        return self.v3u32[0];
+    }
+
+    // get y component
+    pub fn y(self: Vec3u32) u32 {
+        return self.v3u32[1];
+    }
+
+    // get z component
+    pub fn z(self: Vec3u32) u32 {
+        return self.v3u32[2];
+    }
+};
+
 // 2D float vector
 pub const Vec2f32 = struct {
     v2: Vec2_f,

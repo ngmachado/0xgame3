@@ -110,14 +110,27 @@ pub const Draw = struct {
 
     // Digital Differential Analyzer (DDA) line drawing algorithm see https://en.wikipedia.org/wiki/Digital_differential_analyzer_(graphics_algorithm)
     pub fn ddaLine(cb: *ColorBuffer, x1: u32, y1: u32, x2: u32, y2: u32, color: u32) void {
-        _ = cb;
-        _ = x1;
-        _ = y1;
-        _ = x2;
-        _ = y2;
-        _ = color;
+        const _x1: f32 = @floatFromInt(x1);
+        const _y1: f32 = @floatFromInt(y1);
+        const _x2: f32 = @floatFromInt(x2);
+        const _y2: f32 = @floatFromInt(y2);
 
-        // TODO: Implement DDA line drawing algorithm, just for the sake of completeness
+        const dx = _x2 - _x1;
+        const dy = _y2 - _y1;
+        const steps = if (dx > dy) @abs(dx) else @abs(dy);
+
+        const x_inc = dx / steps;
+        const y_inc = dy / steps;
+
+        var x: u32 = _x1;
+        var y: u32 = _y1;
+
+        for (0..@round(steps)) |i| {
+            _ = i;
+            cb.setPixel(x, y, color);
+            x += x_inc;
+            y += y_inc;
+        }
     }
 
     // Generic function to draw a line using a selected algorithm

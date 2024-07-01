@@ -18,7 +18,7 @@ pub fn main() !void {
 
     const config = buffer.ColorBufferConfig{
         .draw_grid = buffer.GridOption.Simple,
-        .grid_color = null, // Use default color
+        .grid_color = null,
         .background_color = Color.fromBytes(0, 0, 0, 255),
         .draw_center_rect = true,
         .rect_color = Color.fromBytes(255, 0, 0, 255),

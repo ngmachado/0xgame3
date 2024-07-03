@@ -6,6 +6,8 @@ const draw = @import("draw.zig");
 const Mesh = @import("mesh.zig").Mesh;
 const Scene = @import("scene.zig").Scene;
 const utils = @import("utils.zig");
+const Triangle = @import("triangle.zig").Triangle;
+const Geometry = @import("geometry.zig").Geometry;
 
 const std = @import("std");
 
@@ -26,6 +28,12 @@ pub const Rasterizer = struct {
             const v0 = mesh.vertices.items[face.v3u32[0]];
             const v1 = mesh.vertices.items[face.v3u32[1]];
             const v2 = mesh.vertices.items[face.v3u32[2]];
+
+            // TODO: This should be done before this step, but for now is fine
+            const trig = Triangle.init(v0, v1, v2);
+            if (Geometry.backfaceCulling(trig, cam.position)) {
+                continue;
+            }
 
             const opt_p0 = cam.perspectiveProjection(v0);
             const opt_p1 = cam.perspectiveProjection(v1);

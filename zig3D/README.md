@@ -43,6 +43,23 @@ The pipeline is built around a simple 3D graphics rendering engine that uses the
 - **Camera**: Controls the view of the scene by moving and rotating the camera.
 - **Scene**: Manages the objects in the scene, including the camera, lights, and meshes.
 
+
+## Screenshots
+
+Here is some screenshots of the current state of the project:
+
+### Clipping
+
+![Mesh Clipping](./assets/screenshots/clipping.png)
+
+![Mesh Clipping](./assets/screenshots/clipping-camera_plane.png)
+
+### Big Mesh
+
+![Big Mesh](./assets/screenshots/big-mesh1.png)
+
+![Big Mesh](./assets/screenshots/big-mesh2.png)
+
 ## More information
 
 To learn more about the Zig programming language, visit the official website at [ziglang.org](https://ziglang.org/).
@@ -50,6 +67,13 @@ To learn more about the SDL2 library, visit the official website at [libsdl.org]
 
 ## Dependencies
 
-SDL2
+```zig
+.dependencies = .{
+        .SDL = .{
+            .url = "https://github.com/pwbh/SDL/archive/refs/tags/release-2.30.3.tar.gz",
+            .hash = "122023e44c8cd24dc7275d01181cab31e386504149f06105c14d66754c03137f2145",
+        },
+    },
+```
 
 

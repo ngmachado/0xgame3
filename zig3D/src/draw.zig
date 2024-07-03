@@ -22,6 +22,7 @@ pub fn CohenComputeOutCode(x: f32, y: f32, xmin: f32, ymin: f32, xmax: f32, ymax
     return code;
 }
 
+// Cohen-Sutherland line clipping algorithm see more at https://en.wikipedia.org/wiki/Cohen%E2%80%93Sutherland_algorithm
 pub fn CohenSutherlandClip(x0: f32, y0: f32, x1: f32, y1: f32, width: f32, height: f32) struct { x0: f32, y0: f32, x1: f32, y1: f32, accept: bool } {
     const xmin = 0;
     const ymin = 0;
@@ -36,40 +37,30 @@ pub fn CohenSutherlandClip(x0: f32, y0: f32, x1: f32, y1: f32, width: f32, heigh
     var _y1 = y1;
     while (true) {
         if (outcode0 == @intFromEnum(CohenRegion.Inside) and outcode1 == @intFromEnum(CohenRegion.Inside)) {
-            // Both points are inside the window; trivially accept and exit loop
             accept = true;
             break;
         } else if (outcode0 & outcode1 != @intFromEnum(CohenRegion.Inside)) {
             accept = false;
             break;
         } else {
-            // Some segment of the line must be inside; calculate the intersection point
             var x: f32 = 0;
             var y: f32 = 0;
 
-            // At least one endpoint is outside the clip rectangle; pick it.
             const outcodeOut = if (outcode0 != @intFromEnum(CohenRegion.Inside)) outcode0 else outcode1;
-
-            // Find the intersection point using the outcodeOut
             if (outcodeOut & @intFromEnum(CohenRegion.Top) != 0) {
-                // Point is above the clip rectangle
                 x = _x0 + (_x1 - _x0) * (ymax - _y0) / (_y1 - _y0);
                 y = ymax;
             } else if (outcodeOut & @intFromEnum(CohenRegion.Bottom) != 0) {
-                // Point is below the clip rectangle
                 x = _x0 + (_x1 - _x0) * (ymin - _y0) / (_y1 - _y0);
                 y = ymin;
             } else if (outcodeOut & @intFromEnum(CohenRegion.Right) != 0) {
-                // Point is to the right of the clip rectangle
                 y = _y0 + (_y1 - _y0) * (xmax - _x0) / (_x1 - _x0);
                 x = xmax;
             } else if (outcodeOut & @intFromEnum(CohenRegion.Left) != 0) {
-                // Point is to the left of the clip rectangle
                 y = _y0 + (_y1 - _y0) * (xmin - _x0) / (_x1 - _x0);
                 x = xmin;
             }
 
-            // Now move the outside point to the intersection point and update the outcode
             if (outcodeOut == outcode0) {
                 _x0 = x;
                 _y0 = y;
@@ -89,6 +80,7 @@ const LineAlgorithm = enum {
     DDA,
 };
 
+// Bresenham's line algorithm see more at https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
 pub fn bresenham_line(cb: *ColorBuffer, x1: u32, y1: u32, x2: u32, y2: u32, color: u32) void {
     // avoid overflows
     const _x1: f32 = @floatFromInt(x1);
@@ -141,11 +133,6 @@ pub fn dda_line(x1: u32, y1: u32, x2: u32, y2: u32, color: u32) void {
 }
 
 pub fn draw_line(cb: *ColorBuffer, x1: u32, y1: u32, x2: u32, y2: u32, color: u32, line_algo: LineAlgorithm) void {
-    // draw line using the specified line algorithm
-    // if the line algorithm is Bresenham, use the Bresenham's line algorithm
-    // if the line algorithm is DDA, use the DDA line algorithm
-    // if the line algorithm is not specified, use the default line algorithm
-
     switch (line_algo) {
         .Bresenham => {
             bresenham_line(cb, x1, y1, x2, y2, color);

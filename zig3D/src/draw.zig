@@ -1,167 +1,176 @@
-//! Draw implementation of basic drawing algorithms
-//!
-//! Provides functions to draw lines, squares, rectangles, and triangles using Bresenham's line
-//! Clip lines using Cohen-Sutherland algorithm
 const std = @import("std");
 const ColorBuffer = @import("color_buffer.zig").ColorBuffer;
 const Color = @import("color.zig");
 
-pub const Draw = struct {
-    const CohenRegion = enum(u8) { Inside = 0, Left = 1, Right = 2, Bottom = 4, Top = 8 };
-    const LineAlgorithm = enum { Bresenham, DDA };
+const CohenRegion = enum(u8) { Inside = 0, Left = 1, Right = 2, Bottom = 4, Top = 8 };
 
-    // computes the Cohen-Sutherland outcode for a point given the clipping boundaries
-    fn computeOutCode(x: f32, y: f32, x_min: f32, y_min: f32, x_max: f32, y_max: f32) u8 {
-        var code = @intFromEnum(CohenRegion.Inside);
-        if (x < x_min) code |= @intFromEnum(CohenRegion.Left);
-        if (x > x_max) code |= @intFromEnum(CohenRegion.Right);
-        if (y < y_min) code |= @intFromEnum(CohenRegion.Bottom);
-        if (y > y_max) code |= @intFromEnum(CohenRegion.Top);
-        return code;
+pub fn CohenComputeOutCode(x: f32, y: f32, xmin: f32, ymin: f32, xmax: f32, ymax: f32) u8 {
+    var code = @intFromEnum(CohenRegion.Inside);
+
+    if (x < xmin) {
+        code |= @intFromEnum(CohenRegion.Left);
+    } else if (x > xmax) {
+        code |= @intFromEnum(CohenRegion.Right);
     }
 
-    // intersection of a line with the clipping boundaries.
-    fn findIntersection(x0: f32, y0: f32, x1: f32, y1: f32, outcodeOut: u8, x_min: f32, y_min: f32, x_max: f32, y_max: f32) struct { x: f32, y: f32 } {
-        var x: f32 = 0;
-        var y: f32 = 0;
-        if ((outcodeOut & @intFromEnum(CohenRegion.Top)) != 0) {
-            x = x0 + (x1 - x0) * (y_max - y0) / (y1 - y0);
-            y = y_max;
-        } else if ((outcodeOut & @intFromEnum(CohenRegion.Bottom)) != 0) {
-            x = x0 + (x1 - x0) * (y_min - y0) / (y1 - y0);
-            y = y_min;
-        } else if ((outcodeOut & @intFromEnum(CohenRegion.Right)) != 0) {
-            y = y0 + (y1 - y0) * (x_max - x0) / (x1 - x0);
-            x = x_max;
-        } else if ((outcodeOut & @intFromEnum(CohenRegion.Left)) != 0) {
-            y = y0 + (y1 - y0) * (x_min - x0) / (x1 - x0);
-            x = x_min;
-        }
-        return .{ .x = x, .y = y };
+    if (y < ymin) {
+        code |= @intFromEnum(CohenRegion.Bottom);
+    } else if (y > ymax) {
+        code |= @intFromEnum(CohenRegion.Top);
     }
 
-    // Cohen-Sutherland clipping algorithm: see https://en.wikipedia.org/wiki/Cohen%E2%80%93Sutherland_algorithm
-    pub fn cohenSutherlandClip(x0: f32, y0: f32, x1: f32, y1: f32, width: f32, height: f32) struct { x0: f32, y0: f32, x1: f32, y1: f32, accept: bool } {
-        var _x0 = x0;
-        var _y0 = y0;
-        var _x1 = x1;
-        var _y1 = y1;
-        var outcode0 = computeOutCode(x0, y0, 0, 0, width, height);
-        var outcode1 = computeOutCode(x1, y1, 0, 0, width, height);
+    return code;
+}
 
-        var accept = false;
-        while (true) {
-            if ((outcode0 | outcode1) == @intFromEnum(CohenRegion.Inside)) {
-                accept = true;
-                break;
-            } else if ((outcode0 & outcode1) != 0) {
-                break;
+pub fn CohenSutherlandClip(x0: f32, y0: f32, x1: f32, y1: f32, width: f32, height: f32) struct { x0: f32, y0: f32, x1: f32, y1: f32, accept: bool } {
+    const xmin = 0;
+    const ymin = 0;
+    const xmax = width;
+    const ymax = height;
+    var outcode0 = CohenComputeOutCode(x0, y0, xmin, ymin, xmax, ymax);
+    var outcode1 = CohenComputeOutCode(x1, y1, xmin, ymin, xmax, ymax);
+    var accept = false;
+    var _x0 = x0;
+    var _y0 = y0;
+    var _x1 = x1;
+    var _y1 = y1;
+    while (true) {
+        if (outcode0 == @intFromEnum(CohenRegion.Inside) and outcode1 == @intFromEnum(CohenRegion.Inside)) {
+            // Both points are inside the window; trivially accept and exit loop
+            accept = true;
+            break;
+        } else if (outcode0 & outcode1 != @intFromEnum(CohenRegion.Inside)) {
+            accept = false;
+            break;
+        } else {
+            // Some segment of the line must be inside; calculate the intersection point
+            var x: f32 = 0;
+            var y: f32 = 0;
+
+            // At least one endpoint is outside the clip rectangle; pick it.
+            const outcodeOut = if (outcode0 != @intFromEnum(CohenRegion.Inside)) outcode0 else outcode1;
+
+            // Find the intersection point using the outcodeOut
+            if (outcodeOut & @intFromEnum(CohenRegion.Top) != 0) {
+                // Point is above the clip rectangle
+                x = _x0 + (_x1 - _x0) * (ymax - _y0) / (_y1 - _y0);
+                y = ymax;
+            } else if (outcodeOut & @intFromEnum(CohenRegion.Bottom) != 0) {
+                // Point is below the clip rectangle
+                x = _x0 + (_x1 - _x0) * (ymin - _y0) / (_y1 - _y0);
+                y = ymin;
+            } else if (outcodeOut & @intFromEnum(CohenRegion.Right) != 0) {
+                // Point is to the right of the clip rectangle
+                y = _y0 + (_y1 - _y0) * (xmax - _x0) / (_x1 - _x0);
+                x = xmax;
+            } else if (outcodeOut & @intFromEnum(CohenRegion.Left) != 0) {
+                // Point is to the left of the clip rectangle
+                y = _y0 + (_y1 - _y0) * (xmin - _x0) / (_x1 - _x0);
+                x = xmin;
+            }
+
+            // Now move the outside point to the intersection point and update the outcode
+            if (outcodeOut == outcode0) {
+                _x0 = x;
+                _y0 = y;
+                outcode0 = CohenComputeOutCode(_x0, _y0, xmin, ymin, xmax, ymax);
             } else {
-                const outcodeOut: u8 = if (outcode0 != @intFromEnum(CohenRegion.Inside)) outcode0 else outcode1;
-                const intersection = findIntersection(x0, y0, x1, y1, outcodeOut, 0, 0, width, height);
-
-                if (outcodeOut == outcode0) {
-                    _x0 = intersection.x;
-                    _y0 = intersection.y;
-                    outcode0 = computeOutCode(x0, y0, 0, 0, width, height);
-                } else {
-                    _x1 = intersection.x;
-                    _y1 = intersection.y;
-                    outcode1 = computeOutCode(x1, y1, 0, 0, width, height);
-                }
-            }
-        }
-        return .{ .x0 = x0, .y0 = y0, .x1 = x1, .y1 = y1, .accept = accept };
-    }
-
-    // Bresenham's line drawing algorithm see https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
-    pub fn bresenhamLine(cb: *ColorBuffer, x1: u32, y1: u32, x2: u32, y2: u32, color: u32) void {
-        const _x1: f32 = @floatFromInt(x1);
-        const _y1: f32 = @floatFromInt(y1);
-        const _x2: f32 = @floatFromInt(x2);
-        const _y2: f32 = @floatFromInt(y2);
-
-        const dx: f32 = @abs(_x2 - _x1);
-        const dy: f32 = @abs(_y2 - _y1);
-
-        const sx: i32 = if (x1 < x2) 1 else -1;
-        const sy: i32 = if (y1 < y2) 1 else -1;
-
-        var err = dx - dy;
-        var x: i32 = @intCast(x1);
-        var y: i32 = @intCast(y1);
-
-        while (true) {
-            cb.drawPixel(@intCast(x), @intCast(y), color);
-            if (x == x2 and y == y2) {
-                break;
-            }
-            const e2 = 2 * err;
-            if (e2 > -dy) {
-                err -= dy;
-                x += sx;
-            }
-            if (e2 < dx) {
-                err += dx;
-                y += sy;
+                _x1 = x;
+                _y1 = y;
+                outcode1 = CohenComputeOutCode(_x1, _y1, xmin, ymin, xmax, ymax);
             }
         }
     }
+    return .{ .x0 = _x0, .y0 = _y0, .x1 = _x1, .y1 = _y1, .accept = accept };
+}
 
-    // Digital Differential Analyzer (DDA) line drawing algorithm see https://en.wikipedia.org/wiki/Digital_differential_analyzer_(graphics_algorithm)
-    pub fn ddaLine(cb: *ColorBuffer, x1: u32, y1: u32, x2: u32, y2: u32, color: u32) void {
-        const _x1: f32 = @floatFromInt(x1);
-        const _y1: f32 = @floatFromInt(y1);
-        const _x2: f32 = @floatFromInt(x2);
-        const _y2: f32 = @floatFromInt(y2);
-
-        const dx = _x2 - _x1;
-        const dy = _y2 - _y1;
-        const steps = if (dx > dy) @abs(dx) else @abs(dy);
-
-        const x_inc = dx / steps;
-        const y_inc = dy / steps;
-
-        var x: u32 = _x1;
-        var y: u32 = _y1;
-
-        for (0..@round(steps)) |i| {
-            _ = i;
-            cb.setPixel(x, y, color);
-            x += x_inc;
-            y += y_inc;
-        }
-    }
-
-    // Generic function to draw a line using a selected algorithm
-    pub fn drawLine(cb: *ColorBuffer, x1: u32, y1: u32, x2: u32, y2: u32, color: u32, algorithm: LineAlgorithm) void {
-        switch (algorithm) {
-            .Bresenham => bresenhamLine(cb, x1, y1, x2, y2, color),
-            .DDA => ddaLine(cb, x1, y1, x2, y2, color),
-        }
-    }
-
-    pub fn line(cb: *ColorBuffer, x1: u32, y1: u32, x2: u32, y2: u32, color: u32) void {
-        drawLine(cb, x1, y1, x2, y2, color, LineAlgorithm.Bresenham);
-    }
-
-    pub fn drawSquare(cb: *ColorBuffer, x: u32, y: u32, size: u32, color: u32) void {
-        drawLine(cb, x, y, x + size, y, color, LineAlgorithm.Bresenham);
-        drawLine(cb, x, y, x, y + size, color, LineAlgorithm.Bresenham);
-        drawLine(cb, x + size, y, x + size, y + size, color, LineAlgorithm.Bresenham);
-        drawLine(cb, x, y + size, x + size, y + size, color, LineAlgorithm.Bresenham);
-    }
-
-    pub fn drawRectangle(cb: *ColorBuffer, x: u32, y: u32, width: u32, height: u32, color: u32) void {
-        drawLine(cb, x, y, x + width, y, color, LineAlgorithm.Bresenham);
-        drawLine(cb, x, y, x, y + height, color, LineAlgorithm.Bresenham);
-        drawLine(cb, x + width, y, x + width, y + height, color, LineAlgorithm.Bresenham);
-        drawLine(cb, x, y + height, x + width, y + height, color, LineAlgorithm.Bresenham);
-    }
-
-    pub fn drawTriangle(cb: *ColorBuffer, x1: u32, y1: u32, x2: u32, y2: u32, x3: u32, y3: u32, color: u32) void {
-        drawLine(cb, x1, y1, x2, y2, color, LineAlgorithm.Bresenham);
-        drawLine(cb, x2, y2, x3, y3, color, LineAlgorithm.Bresenham);
-        drawLine(cb, x3, y3, x1, y1, color, LineAlgorithm.Bresenham);
-    }
+const LineAlgorithm = enum {
+    Bresenham,
+    DDA,
 };
+
+pub fn bresenham_line(cb: *ColorBuffer, x1: u32, y1: u32, x2: u32, y2: u32, color: u32) void {
+    // avoid overflows
+    const _x1: f32 = @floatFromInt(x1);
+    const _y1: f32 = @floatFromInt(y1);
+    const _x2: f32 = @floatFromInt(x2);
+    const _y2: f32 = @floatFromInt(y2);
+
+    const dx: f32 = @abs(_x2 - _x1);
+    const dy: f32 = @abs(_y2 - _y1);
+
+    const sx: i32 = if (x1 < x2) 1 else -1;
+    const sy: i32 = if (y1 < y2) 1 else -1;
+
+    var err = dx - dy;
+    var x: i32 = @intCast(x1);
+    var y: i32 = @intCast(y1);
+
+    while (true) {
+        cb.drawPixel(@intCast(x), @intCast(y), color);
+        if (x == x2 and y == y2) {
+            break;
+        }
+        const e2 = 2 * err;
+        if (e2 > -dy) {
+            err -= dy;
+            x += sx;
+        }
+        if (e2 < dx) {
+            err += dx;
+            y += sy;
+        }
+    }
+}
+
+pub fn dda_line(x1: u32, y1: u32, x2: u32, y2: u32, color: u32) void {
+    _ = x1;
+    _ = y1;
+    _ = x2;
+    _ = y2;
+    _ = color;
+
+    // draw line using DDA line algorithm
+    // DDA line algorithm is the following:
+    // 1. Calculate the difference between the start and end points
+    // 2. Calculate the slope of the line
+    // 3. If the slope is less than 1, iterate over the x axis
+    // 4. If the slope is greater than 1, iterate over the y axis
+    // 5. Draw the pixel at the current x and y position
+    // 6. Repeat until the end point is reached
+}
+
+pub fn draw_line(cb: *ColorBuffer, x1: u32, y1: u32, x2: u32, y2: u32, color: u32, line_algo: LineAlgorithm) void {
+    // draw line using the specified line algorithm
+    // if the line algorithm is Bresenham, use the Bresenham's line algorithm
+    // if the line algorithm is DDA, use the DDA line algorithm
+    // if the line algorithm is not specified, use the default line algorithm
+
+    switch (line_algo) {
+        .Bresenham => {
+            bresenham_line(cb, x1, y1, x2, y2, color);
+        },
+        .DDA => {
+            dda_line(x1, y1, x2, y2, color);
+        },
+    }
+}
+
+pub fn line(cb: *ColorBuffer, x1: u32, y1: u32, x2: u32, y2: u32, color: u32) void {
+    draw_line(cb, x1, y1, x2, y2, color, LineAlgorithm.Bresenham);
+}
+
+pub fn square(x: f32, y: f32, size: f32, color: u32) void {
+    // draw a square with the specified size and color
+    line(x, y, x + size, y, color);
+    line(x, y, x, y + size, color);
+    line(x + size, y, x + size, y + size, color);
+    line(x, y + size, x + size, y + size, color);
+}
+
+pub fn triangle(x1: u32, y1: u32, x2: u32, y2: u32, x3: u32, y3: u32, color: u32) void {
+    // draw a triangle with the specified vertices and color
+    line(x1, y1, x2, y2, color);
+    line(x2, y2, x3, y3, color);
+    line(x3, y3, x1, y1, color);
+}

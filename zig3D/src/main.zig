@@ -1,12 +1,13 @@
-//! Initialize the display and color buffer, and handle input events
+//! initialize the display and color buffer, and handle input events
 const std = @import("std");
-const display = @import("display.zig");
-const buffer = @import("color_buffer.zig");
+const Display = @import("display.zig").Display;
+const ColorBuffer = @import("color_buffer.zig").ColorBuffer;
 const vector = @import("vector.zig");
 const Color = @import("color.zig").Color;
 const input = @import("input.zig");
 const Scene = @import("scene.zig").Scene;
 const Camera = @import("camera.zig").Camera;
+const Rasterizer = @import("rasterizer.zig").Rasterizer;
 
 const TargetFPS: u32 = 120;
 const TargetFrameDurationMs: i64 = 1000 / TargetFPS;
@@ -15,36 +16,39 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var allocator = gpa.allocator();
 
 pub fn main() !void {
-    var screen = try display.Display.init(1024, 900);
+    var screen = try Display.init(1024, 900);
     defer screen.deinit();
 
-    const config = buffer.ColorBufferConfig{
-        .draw_grid = buffer.GridOption.Simple,
+    const colorBufferConfig = ColorBuffer.Config{
+        .draw_grid = ColorBuffer.GridOption.Simple,
         .grid_color = null,
         .background_color = Color.fromBytes(0, 0, 0, 255),
         .draw_center_rect = true,
         .rect_color = Color.fromBytes(255, 0, 0, 255),
-        .rect_width = 50,
-        .rect_height = 50,
+        .rect_width = 10,
+        .rect_height = 10,
     };
 
-    var colorBuffer = try buffer.ColorBuffer.init(allocator, screen.size.getWidth(), screen.size.getHeight(), config);
+    var colorBuffer = try ColorBuffer.init(allocator, screen.width, screen.height, colorBufferConfig);
     defer colorBuffer.deinit();
 
     // set camera config
     const cameraConfig = Camera.Config{
-        .position = vector.Vec3f.init(0.0, 0.0, 0.0),
-        .orientation = vector.Vec3f.init(0.0, 0.0, 0.0),
-        .screen_width = screen.size.getWidth(),
-        .screen_height = screen.size.getHeight(),
-        .fov_factor = 90.0,
-        .near_plane = 0.1,
-        .far_plane = 100.0,
-        .speed = 0.1,
+        .position = vector.Vec3f32.init(0, 0, -1000),
+        .screen_width = screen.width,
+        .screen_height = screen.height,
+        .fov_factor = 800,
+        .near_plane = 0.0001,
+        .far_plane = 100000.0,
+        .speed = 23.14,
     };
 
+    var meshFiles = std.ArrayList([]const u8).init(allocator);
+    defer meshFiles.deinit();
+    try meshFiles.append("assets/models/city.obj");
+
     var scene = try Scene.init(allocator, cameraConfig);
-    try setupScene(&scene);
+    try setupScene(&scene, meshFiles);
 
     var last_time: i64 = std.time.milliTimestamp();
     var start_time = last_time;
@@ -53,20 +57,21 @@ pub fn main() !void {
 
     while (!quit) {
         const current_time: i64 = std.time.milliTimestamp();
-        //const delta_time = calculateDeltaTime(last_time, current_time);
+        const delta_time = calculateDeltaTime(last_time, current_time);
         last_time = current_time;
 
-        handleInput(&quit);
+        handleInput(&quit, &scene.camera);
         if (quit) break;
 
-        colorBuffer.clear();
-        try displayOutput(&screen, &colorBuffer);
+        update(&scene, &colorBuffer, delta_time);
+        rasterizeScene(&scene, &colorBuffer);
+        try displayFrame(&screen, &colorBuffer);
 
         manageFrameRate(current_time, &start_time, &frame_count);
     }
 }
 
-fn handleInput(quit: *bool) void {
+fn handleInput(quit: *bool, camera: *Camera) void {
     const event = input.poll();
     switch (event) {
         input.Event.QUIT => {
@@ -76,32 +81,43 @@ fn handleInput(quit: *bool) void {
             quit.* = true;
         },
         input.Event.UP => {
-            std.debug.print("UP\n", .{});
+            camera.setTargetPosition(vector.Vec3f32.init(0, 100, 0));
         },
         input.Event.DOWN => {
-            std.debug.print("DOWN\n", .{});
+            camera.setTargetPosition(vector.Vec3f32.init(0, -100, 0));
         },
         input.Event.w => {
-            std.debug.print("w\n", .{});
+            camera.setTargetPosition(vector.Vec3f32.init(0, 0, 100));
         },
         input.Event.s => {
-            std.debug.print("s\n", .{});
+            camera.setTargetPosition(vector.Vec3f32.init(0, 0, -100));
         },
         input.Event.a => {
-            std.debug.print("a\n", .{});
+            camera.setTargetPosition(vector.Vec3f32.init(100, 0, 0));
         },
         input.Event.d => {
-            std.debug.print("d\n", .{});
+            camera.setTargetPosition(vector.Vec3f32.init(-100, 0, 0));
         },
         else => {},
     }
 }
 
-fn setupScene(scene: *Scene) !void {
-    try scene.loadMesh(allocator, "assets/bunny.obj");
+fn setupScene(scene: *Scene, files: std.ArrayList([]const u8)) !void {
+    for (files.items) |file| {
+        try scene.loadMesh(allocator, file);
+    }
 }
 
-fn displayOutput(screen: *display.Display, cb: *buffer.ColorBuffer) !void {
+fn update(scene: *Scene, cb: *ColorBuffer, deltaTime: f32) void {
+    cb.update();
+    scene.update(deltaTime);
+}
+
+fn rasterizeScene(scene: *Scene, cb: *ColorBuffer) void {
+    Rasterizer.renderScene(scene, cb);
+}
+
+fn displayFrame(screen: *Display, cb: *ColorBuffer) !void {
     try screen.render(cb.getPtr());
 }
 
@@ -117,10 +133,9 @@ fn manageFrameRate(currentTime: i64, startTime: *i64, frameCount: *u32) void {
         frameCount.* = 0;
         startTime.* = currentTime;
     }
-
     const frameDuration: i64 = std.time.milliTimestamp() - currentTime;
     if (frameDuration < TargetFrameDurationMs) {
         const sleepDuration = TargetFrameDurationMs - frameDuration;
-        std.time.sleep(@as(u64, @intCast(sleepDuration)) * 1000000); // Convert milliseconds to nanoseconds
+        std.time.sleep(@as(u64, @intCast(sleepDuration)) * 1000000);
     }
 }

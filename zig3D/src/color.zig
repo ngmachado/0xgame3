@@ -1,5 +1,5 @@
-///! Color struct and default Pallete
 const std = @import("std");
+const utils = @import("utils.zig");
 
 pub const Color = struct {
     r: u8,
@@ -54,18 +54,18 @@ pub const Color = struct {
     pub fn getARGB(self: Color) u32 {
         return @as(u32, self.a) | (@as(u32, self.r) << 8) | (@as(u32, self.g) << 16) | (@as(u32, self.b) << 24);
     }
-};
 
-pub const Pallet = enum(u32) {
-    Red = Color.fromBytes(255, 0, 0, 255).getARGB(),
-    Green = Color.fromBytes(0, 255, 0, 255).getARGB(),
-    Blue = Color.fromBytes(0, 0, 255, 255).getARGB(),
-    White = Color.fromBytes(255, 255, 255, 255).getARGB(),
-    Black = Color.fromBytes(0, 0, 0, 255).getARGB(),
-    Yellow = Color.fromBytes(255, 255, 0, 255).getARGB(),
-    Cyan = Color.fromBytes(0, 255, 255, 255).getARGB(),
-    Magenta = Color.fromBytes(255, 0, 255, 255).getARGB(),
-    Transparent = Color.fromBytes(0, 0, 0, 0).getARGB(),
-    LightGray = Color.fromBytes(211, 211, 211, 255).getARGB(),
-    Gray = Color.fromBytes(128, 128, 128, 255).getARGB(),
+    pub const Pallet = enum(u32) {
+        Red = Color.fromBytes(255, 0, 0, 255).getARGB(),
+        Green = Color.fromBytes(0, 255, 0, 255).getARGB(),
+        Blue = Color.fromBytes(0, 0, 255, 255).getARGB(),
+        White = Color.fromBytes(255, 255, 255, 255).getARGB(),
+        Black = Color.fromBytes(0, 0, 0, 255).getARGB(),
+        Yellow = Color.fromBytes(255, 255, 0, 255).getARGB(),
+        Cyan = Color.fromBytes(0, 255, 255, 255).getARGB(),
+        Magenta = Color.fromBytes(255, 0, 255, 255).getARGB(),
+        Transparent = Color.fromBytes(0, 0, 0, 0).getARGB(),
+        LightGray = Color.fromBytes(211, 211, 211, 255).getARGB(),
+        Gray = Color.fromBytes(128, 128, 128, 255).getARGB(),
+    };
 };

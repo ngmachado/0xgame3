@@ -1,76 +1,40 @@
 const std = @import("std");
 const vector = @import("vector.zig");
 
-pub const Face = struct {
-    vertex_indices: vector.Vec3u32,
-
-    pub fn init(vertex_indices: vector.Vec3u32) Face {
-        return Face{
-            .vertex_indices = vertex_indices,
-        };
-    }
-};
-
-pub const Texture = struct {
-    u: f32,
-    v: f32,
-
-    pub fn init(u: f32, v: f32) Texture {
-        return Texture{ .u = u, .v = v };
-    }
-};
-
 pub const Mesh = struct {
     allocator: std.mem.Allocator,
-
-    vertices: std.ArrayList(vector.Vec3f),
-    normals: std.ArrayList(vector.Vec3f),
-    texture_coords: std.ArrayList(Texture),
-    faces: std.ArrayList(Face),
+    vertices: std.ArrayList(vector.Vec3f32),
+    faces: std.ArrayList(vector.Vec3u32),
+    position: vector.Vec3f32 = vector.Vec3f32.initZero(),
 
     pub fn init(allocator: std.mem.Allocator) !Mesh {
         return Mesh{
             .allocator = allocator,
-            .vertices = std.ArrayList(vector.Vec3f).init(allocator),
-            .normals = std.ArrayList(vector.Vec3f).init(allocator),
-            .texture_coords = std.ArrayList(Texture).init(allocator),
-            .faces = std.ArrayList(Face).init(allocator),
+            .vertices = std.ArrayList(vector.Vec3f32).init(allocator),
+            .faces = std.ArrayList(vector.Vec3u32).init(allocator),
         };
     }
 
-    pub fn deinit(self: *Mesh) void {
-        self.vertices.deinit();
-        self.normals.deinit();
-        self.texture_coords.deinit();
-        self.faces.deinit();
+    pub fn deinit(self: Mesh) void {
+        self.allocator.free(self.vertices);
+        self.allocator.free(self.faces);
     }
 
-    pub fn addVertex(self: *Mesh, x: f32, y: f32, z: f32) !void {
-        try self.vertices.append(vector.Vec3f.init(x, y, z));
-    }
-
-    pub fn addFace(self: *Mesh, a: u32, b: u32, c: u32) !void {
-        try self.faces.append(Face.init(vector.Vec3u32.init(a, b, c)));
-    }
-
-    pub fn addNormal(self: *Mesh, x: f32, y: f32, z: f32) !void {
-        try self.normals.append(vector.Vec3f.init(x, y, z));
-    }
-
-    pub fn addTextureCoord(self: *Mesh, u: f32, v: f32) !void {
-        try self.texture_coords.append(Texture.init(u, v));
-    }
-
-    pub fn applyTransform(self: *Mesh, transform: fn (vector.Vec3f, f32) vector.Vec3f, param: f32) void {
+    pub fn applyTransform(self: *Mesh, transform: fn (vector.Vec3f32, f32) vector.Vec3f32, param: f32) void {
         for (self.vertices.items, 0..) |vertex, i| {
             self.vertices.items[i] = transform(vertex, param);
         }
-        for (self.normals.items, 0..) |normal, i| {
-            self.normals.items[i] = transform(normal, param);
-        }
     }
 
-    pub fn LoadFromFile(path: []const u8, allocator: std.mem.Allocator) !Mesh {
+    pub fn addVertex(self: *Mesh, x: f32, y: f32, z: f32) !void {
+        try self.vertices.append(vector.Vec3f32.init(x, y, z));
+    }
+
+    pub fn addFace(self: *Mesh, a: u32, b: u32, c: u32) !void {
+        try self.faces.append(vector.Vec3u32.init(a, b, c));
+    }
+
+    pub fn LoadFromObjFile(allocator: std.mem.Allocator, path: []const u8) !Mesh {
         var mesh = try Mesh.init(allocator);
         var file = try std.fs.cwd().openFile(path, .{});
         defer file.close();
@@ -86,7 +50,7 @@ pub const Mesh = struct {
                 error.EndOfStream => break,
                 else => return err,
             };
-            var lines = std.mem.splitAny(u8, arr.items, "\n"); // todo: fix this, terminator on windows is \r\n
+            var lines = std.mem.splitAny(u8, arr.items, "\n");
             if (std.mem.startsWith(u8, arr.items, "v ")) {
                 while (lines.next()) |line| {
                     if (!std.mem.eql(u8, line, " ")) {
@@ -101,37 +65,10 @@ pub const Mesh = struct {
                         try mesh.addVertex(x, -y, z);
                     }
                 }
-            } else if (std.mem.startsWith(u8, arr.items, "vn ")) {
-                while (lines.next()) |line| {
-                    if (!std.mem.eql(u8, line, " ")) {
-                        if (line.len < 5) {
-                            continue;
-                        }
-                        var line_components = std.mem.splitAny(u8, line, " ");
-                        _ = line_components.next(); // ignore the first element
-                        const x = try std.fmt.parseFloat(f32, line_components.next().?);
-                        const y = try std.fmt.parseFloat(f32, line_components.next().?);
-                        const z = try std.fmt.parseFloat(f32, line_components.next().?);
-                        try mesh.addNormal(x, y, z);
-                    }
-                }
-            } else if (std.mem.startsWith(u8, arr.items, "vt ")) {
-                while (lines.next()) |line| {
-                    if (!std.mem.eql(u8, line, " ")) {
-                        if (line.len < 5) {
-                            continue;
-                        }
-                        var line_components = std.mem.splitAny(u8, line, " ");
-                        _ = line_components.next(); // ignore the first element
-                        const u = try std.fmt.parseFloat(f32, line_components.next().?);
-                        const v = try std.fmt.parseFloat(f32, line_components.next().?);
-                        try mesh.addTextureCoord(u, v);
-                    }
-                }
             } else if (std.mem.startsWith(u8, arr.items, "f ")) {
                 while (lines.next()) |line| {
                     var parts = std.mem.splitAny(u8, line, " ");
-                    _ = parts.next(); // ignore the first element
+                    _ = parts.next();
 
                     const part1 = parts.next() orelse return error.InvalidFormat;
                     var line_components = std.mem.splitAny(u8, part1, "/");

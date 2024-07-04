@@ -111,10 +111,6 @@ pub const Vec2f32 = struct {
         return @reduce(.Add, self.v2 * other.v2);
     }
 
-    pub fn cross(self: Vec2f32, other: Vec2f32) f32 {
-        return self.x() * other.y() - self.y() * other.x();
-    }
-
     pub fn length(self: Vec2f32) f32 {
         return @sqrt(self.dot(self));
     }

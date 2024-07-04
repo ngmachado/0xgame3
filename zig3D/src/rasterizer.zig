@@ -29,19 +29,18 @@ pub const Rasterizer = struct {
             const v1 = mesh.vertices.items[face.v3u32[1]];
             const v2 = mesh.vertices.items[face.v3u32[2]];
 
-            // TODO: This should be done before this step, but for now is fine
-            const trig = Triangle.init(v0, v1, v2);
-            if (Geometry.backfaceCulling(trig, cam.position)) {
-                continue;
-            }
-
             const opt_p0 = cam.perspectiveProjection(v0);
             const opt_p1 = cam.perspectiveProjection(v1);
             const opt_p2 = cam.perspectiveProjection(v2);
+
             // horrible, fix this quickly
             if (opt_p0) |p0| {
                 if (opt_p1) |p1| {
                     if (opt_p2) |p2| {
+                        if (Geometry.backfaceCullingSignedArea(p0, p1, p2)) {
+                            continue;
+                        }
+
                         const x0 = p0.x() + half_width;
                         const y0 = p0.y() + half_height;
                         const x1 = p1.x() + half_width;

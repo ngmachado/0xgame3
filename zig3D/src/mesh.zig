@@ -1,17 +1,20 @@
 const std = @import("std");
 const vector = @import("vector.zig");
+const Vec3f32 = vector.Vec3f32;
+const Vec3u32 = vector.Vec3u32;
+const math = std.math;
 
 pub const Mesh = struct {
     allocator: std.mem.Allocator,
-    vertices: std.ArrayList(vector.Vec3f32),
-    faces: std.ArrayList(vector.Vec3u32),
-    position: vector.Vec3f32 = vector.Vec3f32.initZero(),
+    vertices: std.ArrayList(Vec3f32),
+    faces: std.ArrayList(Vec3u32),
+    world_position: Vec3f32 = Vec3f32.initZero(),
 
     pub fn init(allocator: std.mem.Allocator) !Mesh {
         return Mesh{
             .allocator = allocator,
-            .vertices = std.ArrayList(vector.Vec3f32).init(allocator),
-            .faces = std.ArrayList(vector.Vec3u32).init(allocator),
+            .vertices = std.ArrayList(Vec3f32).init(allocator),
+            .faces = std.ArrayList(Vec3u32).init(allocator),
         };
     }
 
@@ -20,18 +23,61 @@ pub const Mesh = struct {
         self.allocator.free(self.faces);
     }
 
-    pub fn applyTransform(self: *Mesh, transform: fn (vector.Vec3f32, f32) vector.Vec3f32, param: f32) void {
+    pub fn applyTransform(self: *Mesh, transform: fn (Vec3f32, f32) Vec3f32, param: f32) void {
         for (self.vertices.items, 0..) |vertex, i| {
             self.vertices.items[i] = transform(vertex, param);
         }
     }
 
     pub fn addVertex(self: *Mesh, x: f32, y: f32, z: f32) !void {
-        try self.vertices.append(vector.Vec3f32.init(x, y, z));
+        try self.vertices.append(Vec3f32.init(x, y, z));
     }
 
     pub fn addFace(self: *Mesh, a: u32, b: u32, c: u32) !void {
-        try self.faces.append(vector.Vec3u32.init(a, b, c));
+        try self.faces.append(Vec3u32.init(a, b, c));
+    }
+
+    pub fn center(self: *Mesh) void {
+        const bbox = self.calculateBoundingBox();
+        const _center = Vec3f32.init(
+            (bbox.min.x() + bbox.max.x()) / 2.0,
+            (bbox.min.y() + bbox.max.y()) / 2.0,
+            (bbox.min.z() + bbox.max.z()) / 2.0,
+        );
+        const translation = _center.mulScalar(-1.0);
+        for (self.vertices.items) |*vertex| {
+            vertex.* = vertex.add(translation);
+        }
+    }
+
+    pub fn calculateBoundingBox(self: *Mesh) struct { min: Vec3f32, max: Vec3f32 } {
+        const f32inf = math.inf(f32);
+        var min = Vec3f32.init(f32inf, f32inf, f32inf);
+        var max = Vec3f32.init(-f32inf, -f32inf, -f32inf);
+
+        for (self.vertices.items) |vertex| {
+            min = Vec3f32.init(
+                @min(min.x(), vertex.x()),
+                @min(min.y(), vertex.y()),
+                @min(min.z(), vertex.z()),
+            );
+            max = Vec3f32.init(
+                @max(max.x(), vertex.x()),
+                @max(max.y(), vertex.y()),
+                @max(max.z(), vertex.z()),
+            );
+        }
+
+        return .{
+            .min = min,
+            .max = max,
+        };
+    }
+
+    pub fn translateToPosition(self: *Mesh, position: Vec3f32) void {
+        for (self.vertices.items) |*vertex| {
+            vertex.* = vertex.add(position);
+        }
     }
 
     pub fn LoadFromObjFile(allocator: std.mem.Allocator, path: []const u8) !Mesh {

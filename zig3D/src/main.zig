@@ -21,10 +21,10 @@ pub fn main() !void {
 
     const colorBufferConfig = ColorBuffer.Config{
         .draw_grid = ColorBuffer.GridOption.Simple,
-        .grid_color = null,
-        .background_color = Color.fromBytes(0, 0, 0, 255),
+        .grid_color = Color.fromPallet(Color.ModernPallet.RichBlack),
+        .background_color = Color.fromPallet(Color.ModernPallet.MidnightGreen),
         .draw_center_rect = true,
-        .rect_color = Color.fromBytes(255, 0, 0, 255),
+        .rect_color = Color.fromPallet(Color.ModernPallet.Rufous),
         .rect_width = 10,
         .rect_height = 10,
     };
@@ -34,18 +34,20 @@ pub fn main() !void {
 
     // set camera config
     const cameraConfig = Camera.Config{
-        .position = vector.Vec3f32.init(0, 0, -1000),
+        .position = vector.Vec3f32.init(-0.9, 0, 5.5),
         .screen_width = screen.width,
         .screen_height = screen.height,
-        .fov_factor = 800,
-        .near_plane = 0.0001,
-        .far_plane = 100000.0,
+        .fov_factor = 60, // common values are: 30, 45, 60, 90
+        .near_plane = 0.001,
+        .far_plane = -10000,
         .speed = 23.14,
     };
 
     var meshFiles = std.ArrayList([]const u8).init(allocator);
     defer meshFiles.deinit();
-    try meshFiles.append("assets/models/city.obj");
+    try meshFiles.append("assets/models/bunny3.obj");
+    // try meshFiles.append("assets/models/cube.obj");
+    //try meshFiles.append("assets/models/teapot.obj");
 
     var scene = try Scene.init(allocator, cameraConfig);
     try setupScene(&scene, meshFiles);
@@ -54,25 +56,28 @@ pub fn main() !void {
     var start_time = last_time;
     var frame_count: u32 = 0;
     var quit = false;
+    var changed = true; // first frame should be rendered, this way we just for testing FPS. Will break with transformations
 
     while (!quit) {
         const current_time: i64 = std.time.milliTimestamp();
         const delta_time = calculateDeltaTime(last_time, current_time);
         last_time = current_time;
 
-        handleInput(&quit, &scene.camera);
+        handleInput(&quit, &scene.camera, &changed);
         if (quit) break;
-
-        update(&scene, &colorBuffer, delta_time);
-        rasterizeScene(&scene, &colorBuffer);
-        try displayFrame(&screen, &colorBuffer);
-
+        if (changed) {
+            update(&scene, &colorBuffer, delta_time);
+            rasterizeScene(&scene, &colorBuffer);
+            try displayFrame(&screen, &colorBuffer);
+            changed = false;
+        }
         manageFrameRate(current_time, &start_time, &frame_count);
     }
 }
 
-fn handleInput(quit: *bool, camera: *Camera) void {
+fn handleInput(quit: *bool, camera: *Camera, changed: *bool) void {
     const event = input.poll();
+    const step = 0.1;
     switch (event) {
         input.Event.QUIT => {
             quit.* = true;
@@ -81,30 +86,44 @@ fn handleInput(quit: *bool, camera: *Camera) void {
             quit.* = true;
         },
         input.Event.UP => {
-            camera.setTargetPosition(vector.Vec3f32.init(0, 100, 0));
+            changed.* = true;
+            camera.setTargetPosition(vector.Vec3f32.init(0, -step, 0));
         },
         input.Event.DOWN => {
-            camera.setTargetPosition(vector.Vec3f32.init(0, -100, 0));
+            changed.* = true;
+            camera.setTargetPosition(vector.Vec3f32.init(0, step, 0));
         },
         input.Event.w => {
-            camera.setTargetPosition(vector.Vec3f32.init(0, 0, 100));
+            changed.* = true;
+            camera.setTargetPosition(vector.Vec3f32.init(0, 0, -step));
         },
         input.Event.s => {
-            camera.setTargetPosition(vector.Vec3f32.init(0, 0, -100));
+            changed.* = true;
+            camera.setTargetPosition(vector.Vec3f32.init(0, 0, step));
         },
         input.Event.a => {
-            camera.setTargetPosition(vector.Vec3f32.init(100, 0, 0));
+            changed.* = true;
+            camera.setTargetPosition(vector.Vec3f32.init(-step, 0, 0));
         },
         input.Event.d => {
-            camera.setTargetPosition(vector.Vec3f32.init(-100, 0, 0));
+            changed.* = true;
+            camera.setTargetPosition(vector.Vec3f32.init(step, 0, 0));
+        },
+        input.Event.c => {
+            changed.* = true;
+            camera.setTargetPosition(vector.Vec3f32.init(-0.9, 0, 5.5));
         },
         else => {},
     }
 }
 
 fn setupScene(scene: *Scene, files: std.ArrayList([]const u8)) !void {
+    var init_pos = vector.Vec3f32.init(0, 0, 0);
+    const pos_offset = vector.Vec3f32.init(2, 2, 2);
+
     for (files.items) |file| {
-        try scene.loadMesh(allocator, file);
+        try scene.loadMesh(allocator, file, init_pos);
+        init_pos = init_pos.add(pos_offset);
     }
 }
 
@@ -114,7 +133,7 @@ fn update(scene: *Scene, cb: *ColorBuffer, deltaTime: f32) void {
 }
 
 fn rasterizeScene(scene: *Scene, cb: *ColorBuffer) void {
-    Rasterizer.renderScene(scene, cb);
+    Rasterizer.renderScene(scene, cb, true);
 }
 
 fn displayFrame(screen: *Display, cb: *ColorBuffer) !void {

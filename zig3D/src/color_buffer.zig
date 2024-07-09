@@ -16,10 +16,13 @@ const Color = @import("color.zig").Color;
 
 pub const ColorBuffer = struct {
     allocator: std.mem.Allocator,
-    data: []u32,
+    pixels: []u32,
+    zbuffer: []f32,
     width: u32,
     height: u32,
     config: Config,
+
+    pub const MAX_DEPTH: f32 = std.math.floatMax(f32);
 
     pub const GridOption = enum {
         None,
@@ -39,16 +42,22 @@ pub const ColorBuffer = struct {
 
     pub fn init(allocator: std.mem.Allocator, width: u32, height: u32, config: Config) !ColorBuffer {
         const data = try allocator.alloc(u32, width * height);
+        const zbuffer = try allocator.alloc(f32, width * height);
         // set all pixels to black
         for (data) |*elem| {
             elem.* = 0;
+        }
+
+        for (zbuffer) |*elem| {
+            elem.* = ColorBuffer.MAX_DEPTH;
         }
 
         return ColorBuffer{
             .allocator = allocator,
             .width = width,
             .height = height,
-            .data = data,
+            .pixels = data,
+            .zbuffer = zbuffer,
             .config = config,
         };
     }
@@ -64,55 +73,49 @@ pub const ColorBuffer = struct {
     }
 
     pub fn clearWithColor(self: *ColorBuffer, color: Color) void {
-        for (self.data) |*elem| {
-            elem.* = color.getARGB();
+        var pos = self.pixels.len - 1;
+        while (pos > 0) {
+            self.pixels[pos] = color.getARGB();
+            self.zbuffer[pos] = ColorBuffer.MAX_DEPTH;
+            pos -= 1;
         }
     }
 
     pub fn update(self: *ColorBuffer) void {
         self.clear();
-        if (self.config.draw_grid != GridOption.None) {
-            self.drawGrid();
-        }
-        if (self.config.draw_center_rect) {
-            self.drawCenterRect();
-        }
     }
 
-    pub fn drawPixel(self: *ColorBuffer, x: u32, y: u32, color: u32) void {
+    pub fn drawPixel(self: *ColorBuffer, x: u32, y: u32, color: u32, depth: f32) void {
         if (x < self.width and y < self.height) {
-            self.data[x + (y * self.width)] = color;
+            const index = x + (y * self.width);
+            if (self.zbuffer[index] > depth) {
+                self.zbuffer[index] = depth;
+                self.pixels[index] = color;
+            }
         }
     }
 
     pub fn getPtr(self: *ColorBuffer) *u32 {
-        return &self.data[0];
+        return &self.pixels[0];
     }
 
     pub fn deinit(self: *ColorBuffer) void {
-        self.allocator.free(self.data);
+        self.allocator.free(self.pixels);
+        self.allocator.free(self.zbuffer);
     }
 
     pub fn drawGrid(self: *ColorBuffer) void {
-        const lightGrayColor = Color.fromBytes(200, 200, 200, 255).getARGB();
+        //const lightGrayColor = Color.fromBytes(200, 200, 200, 255).getARGB();
         const gridColor = self.config.grid_color orelse Color.fromBytes(255, 255, 255, 255);
-        const gridColorARGB = gridColor.getARGB();
+        _ = gridColor;
+        const randomColor = Color.fromBytes(255, 0, 0, 0).getARGB();
+        //const gridColorARGB = gridColor.getARGB();
         var i: u32 = 0;
         var j: u32 = 0;
 
-        while (i < self.width) : (i += 1) {
-            self.drawPixel(i, 0, lightGrayColor);
-            self.drawPixel(i, self.height - 1, lightGrayColor);
-        }
-        while (j < self.height) : (j += 1) {
-            self.drawPixel(0, j, lightGrayColor);
-            self.drawPixel(self.width - 1, j, lightGrayColor);
-        }
-        i = 0;
-        j = 0;
         while (i < self.width) : (i += 20) {
             while (j < self.height) : (j += 20) {
-                self.drawPixel(i, j, gridColorARGB);
+                self.drawPixel(i, j, randomColor, ColorBuffer.MAX_DEPTH - 1e38);
             }
             j = 0;
         }
@@ -131,10 +134,18 @@ pub const ColorBuffer = struct {
         while (j < y + height) {
             var i: u32 = x;
             while (i < x + width) {
-                self.drawPixel(i, j, color);
+                self.drawPixel(i, j, color, -ColorBuffer.MAX_DEPTH);
                 i += 1;
             }
             j += 1;
         }
+    }
+
+    pub fn depthTest(self: *ColorBuffer, x: u32, y: u32, z: f32) bool {
+        const index = y * self.width + x;
+        if (z < self.zbuffer[index]) {
+            return self.zbuffer[index] == z;
+        }
+        return false;
     }
 };

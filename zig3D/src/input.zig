@@ -12,6 +12,7 @@ pub const Event = enum {
     s,
     a,
     d,
+    c,
     NOTHING,
 };
 
@@ -44,6 +45,9 @@ pub fn poll() Event {
                 },
                 c.SDLK_d => {
                     return Event.d;
+                },
+                c.SDLK_c => {
+                    return Event.c;
                 },
                 else => {},
             }

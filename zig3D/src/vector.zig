@@ -4,8 +4,10 @@ const utils = @import("utils.zig");
 
 const Vec2_f32 = @Vector(2, f32);
 const Vec3_f32 = @Vector(3, f32);
+const Vec4_f32 = @Vector(4, f32);
 const Vec2_u32 = @Vector(2, u32);
 const Vec3_u32 = @Vector(3, u32);
+const Vec4_u32 = @Vector(4, u32);
 
 pub const Vec2u32 = struct {
     v2u32: Vec2_u32,
@@ -48,6 +50,34 @@ pub const Vec3u32 = struct {
 
     pub fn z(self: Vec3u32) u32 {
         return self.v3u32[2];
+    }
+};
+
+pub const Vec4u32 = struct {
+    v4u32: Vec4_u32,
+
+    pub fn init(vx: u32, vy: u32, vz: u32, vw: u32) Vec4u32 {
+        return Vec4u32{ .v4u32 = .{ vx, vy, vz, vw } };
+    }
+
+    pub fn initZero() Vec4u32 {
+        return Vec4u32.init(0, 0, 0, 0);
+    }
+
+    pub fn x(self: Vec4u32) u32 {
+        return self.v4u32[0];
+    }
+
+    pub fn y(self: Vec4u32) u32 {
+        return self.v4u32[1];
+    }
+
+    pub fn z(self: Vec4u32) u32 {
+        return self.v4u32[2];
+    }
+
+    pub fn w(self: Vec4u32) u32 {
+        return self.v4u32[3];
     }
 };
 
@@ -146,6 +176,10 @@ pub const Vec2f32 = struct {
         const cos = @cos(angle_rad);
         const sin = @sin(angle_rad);
         return Vec2f32.init(self.x() * cos - self.y() * sin, self.y());
+    }
+
+    pub fn toVec3(self: Vec2f32) Vec3f32 {
+        return Vec3f32.init(self.x(), self.y(), 0.0);
     }
 };
 
@@ -282,5 +316,53 @@ pub const Vec3f32 = struct {
 
     pub fn zero() Vec3f32 {
         return Vec3f32.init(0.0, 0.0, 0.0);
+    }
+
+    pub fn toVec4(self: Vec3f32) Vec4f32 {
+        return Vec4f32.init(self.x(), self.y(), self.z(), 0.0);
+    }
+
+    pub fn toVec2(self: Vec3f32) Vec2f32 {
+        return Vec2f32.init(self.x(), self.y());
+    }
+};
+
+pub const Vec4f32 = struct {
+    v4f32: Vec4_f32,
+
+    pub fn init(vx: f32, vy: f32, vz: f32, vw: f32) Vec4f32 {
+        return Vec4f32{ .v4f32 = .{ vx, vy, vz, vw } };
+    }
+
+    pub fn initZero() Vec4f32 {
+        return Vec4f32.init(0.0, 0.0, 0.0, 0.0);
+    }
+
+    pub fn x(self: Vec4f32) f32 {
+        return self.v4f32[0];
+    }
+
+    pub fn y(self: Vec4f32) f32 {
+        return self.v4f32[1];
+    }
+
+    pub fn z(self: Vec4f32) f32 {
+        return self.v4f32[2];
+    }
+
+    pub fn w(self: Vec4f32) f32 {
+        return self.v4f32[3];
+    }
+
+    pub fn isZero(self: Vec4f32) bool {
+        return eql(self, Vec4f32.zero());
+    }
+
+    pub fn eql(self: Vec4f32, other: Vec4f32) bool {
+        return self.x() == other.x() and self.y() == other.y() and self.z() == other.z() and self.w() == other.w();
+    }
+
+    pub fn zero() Vec4f32 {
+        return Vec4f32.init(0.0, 0.0, 0.0, 0.0);
     }
 };

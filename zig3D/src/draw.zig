@@ -75,14 +75,8 @@ pub fn CohenSutherlandClip(x0: f32, y0: f32, x1: f32, y1: f32, width: f32, heigh
     return .{ .x0 = _x0, .y0 = _y0, .x1 = _x1, .y1 = _y1, .accept = accept };
 }
 
-const LineAlgorithm = enum {
-    Bresenham,
-    DDA,
-};
-
 // Bresenham's line algorithm see more at https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
-pub fn bresenham_line(cb: *ColorBuffer, x1: u32, y1: u32, x2: u32, y2: u32, color: u32) void {
-    // avoid overflows
+pub fn line(cb: *ColorBuffer, x1: u32, y1: u32, x2: u32, y2: u32, color: u32, depth: f32) void {
     const _x1: f32 = @floatFromInt(x1);
     const _y1: f32 = @floatFromInt(y1);
     const _x2: f32 = @floatFromInt(x2);
@@ -99,7 +93,7 @@ pub fn bresenham_line(cb: *ColorBuffer, x1: u32, y1: u32, x2: u32, y2: u32, colo
     var y: i32 = @intCast(y1);
 
     while (true) {
-        cb.drawPixel(@intCast(x), @intCast(y), color);
+        cb.drawPixel(@intCast(x), @intCast(y), color, depth);
         if (x == x2 and y == y2) {
             break;
         }
@@ -113,51 +107,4 @@ pub fn bresenham_line(cb: *ColorBuffer, x1: u32, y1: u32, x2: u32, y2: u32, colo
             y += sy;
         }
     }
-}
-
-pub fn dda_line(x1: u32, y1: u32, x2: u32, y2: u32, color: u32) void {
-    _ = x1;
-    _ = y1;
-    _ = x2;
-    _ = y2;
-    _ = color;
-
-    // draw line using DDA line algorithm
-    // DDA line algorithm is the following:
-    // 1. Calculate the difference between the start and end points
-    // 2. Calculate the slope of the line
-    // 3. If the slope is less than 1, iterate over the x axis
-    // 4. If the slope is greater than 1, iterate over the y axis
-    // 5. Draw the pixel at the current x and y position
-    // 6. Repeat until the end point is reached
-}
-
-pub fn draw_line(cb: *ColorBuffer, x1: u32, y1: u32, x2: u32, y2: u32, color: u32, line_algo: LineAlgorithm) void {
-    switch (line_algo) {
-        .Bresenham => {
-            bresenham_line(cb, x1, y1, x2, y2, color);
-        },
-        .DDA => {
-            dda_line(x1, y1, x2, y2, color);
-        },
-    }
-}
-
-pub fn line(cb: *ColorBuffer, x1: u32, y1: u32, x2: u32, y2: u32, color: u32) void {
-    draw_line(cb, x1, y1, x2, y2, color, LineAlgorithm.Bresenham);
-}
-
-pub fn square(x: f32, y: f32, size: f32, color: u32) void {
-    // draw a square with the specified size and color
-    line(x, y, x + size, y, color);
-    line(x, y, x, y + size, color);
-    line(x + size, y, x + size, y + size, color);
-    line(x, y + size, x + size, y + size, color);
-}
-
-pub fn triangle(x1: u32, y1: u32, x2: u32, y2: u32, x3: u32, y3: u32, color: u32) void {
-    // draw a triangle with the specified vertices and color
-    line(x1, y1, x2, y2, color);
-    line(x2, y2, x3, y3, color);
-    line(x3, y3, x1, y1, color);
 }

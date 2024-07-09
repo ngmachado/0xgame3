@@ -1,6 +1,7 @@
 const std = @import("std");
 const Camera = @import("camera.zig").Camera;
 const Mesh = @import("mesh.zig").Mesh;
+const Vec3f32 = @import("vector.zig").Vec3f32;
 
 pub const Scene = struct {
     camera: Camera,
@@ -20,8 +21,9 @@ pub const Scene = struct {
         self.meshes.deinit();
     }
 
-    pub fn loadMesh(self: *Scene, allocator: std.mem.Allocator, filepath: []const u8) !void {
-        const mesh = try Mesh.LoadFromObjFile(allocator, filepath);
+    pub fn loadMesh(self: *Scene, allocator: std.mem.Allocator, filepath: []const u8, word_position: Vec3f32) !void {
+        var mesh = try Mesh.LoadFromObjFile(allocator, filepath);
+        mesh.world_position = word_position;
         try self.meshes.append(mesh);
     }
 

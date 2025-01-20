@@ -52,15 +52,15 @@ Here is some screenshots of the current state of the project:
 
 ### Clipping
 
-![Mesh Clipping](./assets/screenshots/clipping.png)
+![Mesh Clipping](./zig3D/assets/screenshots/clipping.png)
 
-![Mesh Clipping](./assets/screenshots/clipping-camera_plane.png)
+![Mesh Clipping](./zig3D/assets/screenshots/clipping-camera_plane.png)
 
 ### Big Mesh
 
-![Big Mesh](./assets/screenshots/big-mesh1.png)
+![Big Mesh](./zig3D/assets/screenshots/big-mesh1.png)
 
-![Big Mesh](./assets/screenshots/big-mesh2.png)
+![Big Mesh](./zig3D/assets/screenshots/big-mesh2.png)
 
 ## More information
 
